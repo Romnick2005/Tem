@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Workbench - School Management System</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- SVG icons / Font Awesome for Eye Icon -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <!-- AUTHENTICATION MODAL OVERLAY -->
+  <div id="authModal" class="auth-overlay">
+    <div id="loginModal" class="modal-card">
+      <h2>Login to Workbench</h2>
+      
+      <!-- LOGIN FORM -->
+      <form id="loginForm" novalidate>
+        <div class="form-group">
+          <label for="loginEmail">Email Address</label>
+          <input type="email" id="loginEmail" required placeholder="teacher@school.edu">
+          <span class="error-msg" id="loginEmailError"></span>
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Password</label>
+          <div class="password-wrapper">
+            <input type="password" id="loginPassword" required placeholder="••••••••">
+            <i class="fa-solid fa-eye toggle-password" onclick="togglePasswordVisibility('loginPassword', this)"></i>
+          </div>
+          <span class="error-msg" id="loginPasswordError"></span>
+        </div>
+        <button type="submit" class="btn btn-primary">Log In</button>
+        <p class="auth-toggle">Don't have an account? <a href="#" onclick="switchAuthTab('register')">Register here</a></p>
+      </form>
+
+      <!-- REGISTER FORM -->
+      <form id="registerForm" class="hidden" novalidate>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="regFirstName">First Name *</label>
+            <input type="text" id="regFirstName" required placeholder="Maria">
+            <span class="error-msg" id="regFirstNameError"></span>
+          </div>
+          <div class="form-group">
+            <label for="regMiddleName">Middle Name</label>
+            <input type="text" id="regMiddleName" placeholder="Santos">
+            <span class="error-msg" id="regMiddleNameError"></span>
+          </div>
+          <div class="form-group">
+            <label for="regLastName">Last Name *</label>
+            <input type="text" id="regLastName" required placeholder="Dela Cruz">
+            <span class="error-msg" id="regLastNameError"></span>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="regEmail">Email Address *</label>
+            <input type="email" id="regEmail" required placeholder="teacher@school.edu">
+            <span class="error-msg" id="regEmailError"></span>
+          </div>
+          <div class="form-group">
+            <label for="regPassword">Password *</label>
+            <div class="password-wrapper">
+              <input type="password" id="regPassword" required placeholder="••••••••">
+              <i class="fa-solid fa-eye toggle-password" onclick="togglePasswordVisibility('regPassword', this)"></i>
+            </div>
+            <span class="error-msg" id="regPasswordError"></span>
+          </div>
+        </div>
+
+        <!-- NEW CONFIRM PASSWORD FIELD -->
+        <div class="form-group">
+          <label for="regConfirmPassword">Confirm Password *</label>
+          <div class="password-wrapper">
+            <input type="password" id="regConfirmPassword" required placeholder="••••••••">
+            <i class="fa-solid fa-eye toggle-password" onclick="togglePasswordVisibility('regConfirmPassword', this)"></i>
+          </div>
+          <span class="error-msg" id="regConfirmPasswordError"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="regTeacherCategory">Teacher Category *</label>
+          <select id="regTeacherCategory" onchange="toggleAdvisorySectionSelect()">
+            <option value="Teacher Only">Teacher Only</option>
+            <option value="Teacher with Advisory">Teacher with Advisory</option>
+            <option value="Guidance">Guidance</option>
+          </select>
+        </div>
+
+        <div class="form-group hidden" id="advisorySectionGroup">
+          <label for="regAdvisorySection">Advisory Section</label>
+          <select id="regAdvisorySection"></select>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Register Account</button>
+        <p class="auth-toggle">Already have an account? <a href="#" onclick="switchAuthTab('login')">Log in here</a></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- WORKBENCH HEADER -->
+  <header id="mainHeader">
+    <div class="header-brand">
+      <h1>School Workbench</h1>
+    </div>
+    
+    <div id="userInfo" class="user-controls hidden">
+      <div class="user-info">
+        <span id="userNameLabel" class="composite-name">User Name</span>
+        <span id="userBadge" class="role-badge">Role</span>
+      </div>
+      <div>
+        <label for="perspectiveSwitcher">Perspective:</label>
+        <select id="perspectiveSwitcher" onchange="handlePerspectiveChange()"></select>
+      </div>
+      <button id="logoutBtn" onclick="handleLogout()" class="btn btn-secondary">Log Out</button>
+    </div>
+  </header>
+
+  <div id="actionButtons" class="container hidden" style="margin-top: 15px;">
+    <button id="addStudentBtn" class="btn btn-primary" onclick="openAddStudentModal()">Add Student</button>
+    <button id="addScheduleBtn" class="btn btn-primary" onclick="openAddScheduleModal()">Add Schedule</button>
+  </div>
+
+  <!-- WORKBENCH APP CONTENT -->
+  <main id="appContent" class="container">
+    <section id="adviserSection" class="role-section hidden">
+      <h2>Adviser Perspective - Advisory Class Roster</h2>
+      <div class="card">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>LRN / Student ID</th>
+              <th>Name</th>
+              <th>Gender</th>
+              <th>Face Photo</th>
+              <th>Section</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="studentTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="scheduleSection" class="role-section hidden">
+      <h2>Class Schedules</h2>
+      <div class="card">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Subject</th>
+              <th>Teacher</th>
+              <th>Section</th>
+              <th>Day</th>
+              <th>Start Time</th>
+              <th>End Time</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="scheduleTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="teacherClassColumnsSection" class="role-section hidden">
+      <h2>Subject Teacher Perspective</h2>
+      <div id="subjectClassCardsContainer"></div>
+    </section>
+
+    <section id="guidanceSection" class="role-section hidden">
+      <h2>Guidance Perspective</h2>
+      <div class="card">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Log ID</th>
+              <th>Timestamp</th>
+              <th>Student Name</th>
+              <th>Section</th>
+              <th>Assessment Event</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="assessmentLogTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- ADD / EDIT STUDENT MODAL OVERLAY -->
+  <div id="addStudentModal" class="auth-overlay hidden">
+    <div class="modal-card">
+      <h3 id="studentModalTitle">Add Student</h3>
+      <form id="addStudentForm" novalidate>
+        <input type="hidden" id="editStudentId">
+        <div class="form-group">
+          <label>LRN</label>
+          <input type="text" id="studNumber" required placeholder="e.g. 123456789012">
+          <span class="error-msg" id="studNumberError"></span>
+        </div>
+        <div class="form-group">
+          <label>First Name</label>
+          <input type="text" id="studFirstName" required placeholder="Juan">
+          <span class="error-msg" id="studFirstNameError"></span>
+        </div>
+        <div class="form-group">
+          <label>Middle Name</label>
+          <input type="text" id="studMiddleName" placeholder="Mercado">
+          <span class="error-msg" id="studMiddleNameError"></span>
+        </div>
+        <div class="form-group">
+          <label>Last Name</label>
+          <input type="text" id="studLastName" required placeholder="Dela Cruz">
+          <span class="error-msg" id="studLastNameError"></span>
+        </div>
+        <div class="form-group">
+          <label>Gender</label>
+          <select id="studGender">
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Section</label>
+          <select id="studSectionSelect"></select>
+        </div>
+        <div class="form-group">
+          <label>Face Image URL</label>
+          <input type="text" id="studFaceImageUrl" placeholder="https://...">
+        </div>
+        <div class="modal-actions">
+          <button type="submit" class="btn btn-primary">Save Student</button>
+          <button type="button" class="btn btn-secondary" onclick="closeModal('addStudentModal')">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ADD SCHEDULE MODAL OVERLAY -->
+  <div id="addScheduleModal" class="auth-overlay hidden">
+    <div class="modal-card">
+      <h3>Add Class Schedule</h3>
+      <form id="addScheduleForm" novalidate>
+        <div class="form-group">
+          <label>Subject Name</label>
+          <input type="text" id="schedSubject" required placeholder="Mathematics">
+          <span class="error-msg" id="schedSubjectError"></span>
+        </div>
+        <div class="form-group">
+          <label>Teacher</label>
+          <select id="schedTeacher"></select>
+        </div>
+
+        <!-- DAY OF WEEK CHECKBOXES -->
+        <div class="form-group">
+          <label>Day of Week *</label>
+          <div class="checkbox-group" id="schedDaysGroup">
+            <label class="checkbox-label"><input type="checkbox" name="schedDay" value="Monday"> Mon</label>
+            <label class="checkbox-label"><input type="checkbox" name="schedDay" value="Tuesday"> Tue</label>
+            <label class="checkbox-label"><input type="checkbox" name="schedDay" value="Wednesday"> Wed</label>
+            <label class="checkbox-label"><input type="checkbox" name="schedDay" value="Thursday"> Thu</label>
+            <label class="checkbox-label"><input type="checkbox" name="schedDay" value="Friday"> Fri</label>
+            <label class="checkbox-label"><input type="checkbox" name="schedDay" value="Saturday"> Sat</label>
+          </div>
+          <span class="error-msg" id="schedDaysError"></span>
+        </div>
+
+        <div class="form-group">
+          <label>Start Time</label>
+          <input type="time" id="schedStart" required>
+          <span class="error-msg" id="schedStartError"></span>
+        </div>
+        <div class="form-group">
+          <label>End Time</label>
+          <input type="time" id="schedEnd" required>
+          <span class="error-msg" id="schedEndError"></span>
+        </div>
+        <div class="modal-actions">
+          <button type="submit" class="btn btn-primary">Save Schedule</button>
+          <button type="button" class="btn btn-secondary" onclick="closeModal('addScheduleModal')">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="main.js"></script>
+</body>
+</html>
