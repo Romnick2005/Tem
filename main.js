@@ -6,7 +6,9 @@ const classGradebookState = {};
 const mockStudents = [
   { student_id: 1, student_number: '20260001', firstname: 'Juan', middlename: 'M.', lastname: 'Dela Cruz', gender: 'Male', attendance_status: 'Present' },
   { student_id: 2, student_number: '20260002', firstname: 'Maria', middlename: 'S.', lastname: 'Santos', gender: 'Female', attendance_status: 'Late' },
-  { student_id: 3, student_number: '20260003', firstname: 'Mark', middlename: 'A.', lastname: 'Reyes', gender: 'Male', attendance_status: 'Present' }
+  { student_id: 3, student_number: '20260003', firstname: 'Mark', middlename: 'A.', lastname: 'Reyes', gender: 'Male', attendance_status: 'Present' },
+  { student_id: 4, student_number: '20260004', firstname: 'Rom', middlename: 'Sar', lastname: 'Bags', gender: 'Male', attendance_status: 'Present' },
+  { student_id: 5, student_number: '20260005', firstname: 'Nick', middlename: 'Jena', lastname: 'Gus', gender: 'Male', attendance_status: 'Present' }
 ];
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -14,6 +16,24 @@ document.addEventListener('DOMContentLoaded', () => {
   setupValidationListeners();
   loadInitialData();
 });
+
+// Helper function to sort students: Male first, Female second, then alphabetically by Last Name, First Name
+function sortStudentsByGenderAndName(students) {
+  return [...students].sort((a, b) => {
+    // 1. Male first, Female second
+    if (a.gender !== b.gender) {
+      if (a.gender === 'Male') return -1;
+      if (b.gender === 'Male') return 1;
+      return a.gender.localeCompare(b.gender);
+    }
+    // 2. Alphabetical by Last Name
+    const lastNameCompare = (a.lastname || '').localeCompare(b.lastname || '');
+    if (lastNameCompare !== 0) return lastNameCompare;
+
+    // 3. Alphabetical by First Name
+    return (a.firstname || '').localeCompare(b.firstname || '');
+  });
+}
 
 function setupEventListeners() {
   const loginForm = document.getElementById('loginForm');
@@ -24,17 +44,26 @@ function setupEventListeners() {
   if (addStudentForm) addStudentForm.addEventListener('submit', handleAddStudentSubmit);
   const addScheduleForm = document.getElementById('addScheduleForm');
   if (addScheduleForm) addScheduleForm.addEventListener('submit', handleAddScheduleSubmit);
+  
+  const dailyCheckbox = document.getElementById('schedDailyOption');
+  if (dailyCheckbox) {
+    dailyCheckbox.addEventListener('change', (e) => {
+      if (e.target.checked) {
+        const dayCheckboxes = document.querySelectorAll('input[name="schedDay"]');
+        dayCheckboxes.forEach(cb => cb.checked = true);
+        e.target.checked = false;
+        
+        const daysErr = document.getElementById('schedDaysError');
+        if (daysErr) daysErr.innerText = '';
+      }
+    });
+  }
 }
-
-/* ==========================================================================
-   VALIDATION UTILITIES & REAL-TIME INPUT LISTENERS
-   ========================================================================== */
 
 function capitalizeFirstLetter(str) {
   return str.replace(/\b\w/g, char => char.toUpperCase());
 }
 
-// Password Complexity Check: Min 6 chars, uppercase, lowercase, number, special char
 function isStrongPassword(password) {
   const minLength = password.length >= 6;
   const hasUpper = /[A-Z]/.test(password);
@@ -78,15 +107,12 @@ function togglePasswordVisibility(inputId, iconElem) {
 }
 
 function setupValidationListeners() {
-  // Name fields auto-capitalization & Disallow Numbers
   const nameFields = ['regFirstName', 'regMiddleName', 'regLastName', 'studFirstName', 'studMiddleName', 'studLastName'];
   nameFields.forEach(id => {
     const elem = document.getElementById(id);
     if (elem) {
-      elem.addEventListener('input', (e) => {
-        // Remove numbers dynamically
+      const validateName = (e) => {
         e.target.value = e.target.value.replace(/[0-9]/g, '');
-        // Auto uppercase first letter of each word
         e.target.value = capitalizeFirstLetter(e.target.value);
         
         const errorElem = document.getElementById(`${id}Error`);
@@ -95,14 +121,30 @@ function setupValidationListeners() {
         } else {
           setFieldValidity(elem, errorElem, true);
         }
-      });
+      };
+      elem.addEventListener('input', validateName);
+      elem.addEventListener('blur', validateName);
     }
   });
 
-  // LRN Field - Numeric Only enforcement
+  const schedSubject = document.getElementById('schedSubject');
+  if (schedSubject) {
+    const validateSubject = (e) => {
+      e.target.value = e.target.value.replace(/[0-9]/g, '');
+      const errorElem = document.getElementById('schedSubjectError');
+      if (!e.target.value.trim()) {
+        setFieldValidity(schedSubject, errorElem, false, 'Subject name is required and cannot contain numbers.');
+      } else {
+        setFieldValidity(schedSubject, errorElem, true);
+      }
+    };
+    schedSubject.addEventListener('input', validateSubject);
+    schedSubject.addEventListener('blur', validateSubject);
+  }
+
   const lrnInput = document.getElementById('studNumber');
   if (lrnInput) {
-    lrnInput.addEventListener('input', (e) => {
+    const validateLrn = (e) => {
       e.target.value = e.target.value.replace(/[^0-9]/g, '');
       const errorElem = document.getElementById('studNumberError');
       if (!e.target.value.trim()) {
@@ -110,13 +152,37 @@ function setupValidationListeners() {
       } else {
         setFieldValidity(lrnInput, errorElem, true);
       }
+    };
+    lrnInput.addEventListener('input', validateLrn);
+    lrnInput.addEventListener('blur', validateLrn);
+  }
+
+  const schedStart = document.getElementById('schedStart');
+  const schedEnd = document.getElementById('schedEnd');
+  if (schedStart) {
+    schedStart.addEventListener('change', () => {
+      const err = document.getElementById('schedStartError');
+      setFieldValidity(schedStart, err, !!schedStart.value, 'Start time required.');
+    });
+  }
+  if (schedEnd) {
+    schedEnd.addEventListener('change', () => {
+      const err = document.getElementById('schedEndError');
+      setFieldValidity(schedEnd, err, !!schedEnd.value, 'End time required.');
     });
   }
 
-  // Registration Password validation
+  const dayCheckboxes = document.querySelectorAll('input[name="schedDay"]');
+  dayCheckboxes.forEach(cb => {
+    cb.addEventListener('change', () => {
+      const checked = Array.from(dayCheckboxes).some(c => c.checked);
+      const daysErr = document.getElementById('schedDaysError');
+      if (daysErr) daysErr.innerText = checked ? '' : 'Please select at least one day.';
+    });
+  });
+
   const regPassword = document.getElementById('regPassword');
   const regConfirmPassword = document.getElementById('regConfirmPassword');
-
   if (regPassword) {
     regPassword.addEventListener('input', () => {
       const err = document.getElementById('regPasswordError');
@@ -130,7 +196,6 @@ function setupValidationListeners() {
       }
     });
   }
-
   if (regConfirmPassword) {
     regConfirmPassword.addEventListener('input', validateConfirmPassword);
   }
@@ -144,12 +209,11 @@ function setupValidationListeners() {
     }
   }
 
-  // Email Validation
   const emailFields = ['loginEmail', 'regEmail'];
   emailFields.forEach(id => {
     const elem = document.getElementById(id);
     if (elem) {
-      elem.addEventListener('input', () => {
+      const validateEmail = () => {
         const err = document.getElementById(`${id}Error`);
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(elem.value)) {
@@ -157,14 +221,12 @@ function setupValidationListeners() {
         } else {
           setFieldValidity(elem, err, true);
         }
-      });
+      };
+      elem.addEventListener('input', validateEmail);
+      elem.addEventListener('blur', validateEmail);
     }
   });
 }
-
-/* ==========================================================================
-   CORE APPLICATION LOGIC
-   ========================================================================== */
 
 async function loadInitialData() {
   await populateSectionsDropdowns();
@@ -215,7 +277,6 @@ function openAddStudentModal() {
   const form = document.getElementById('addStudentForm');
   form.reset();
   form.querySelectorAll('input').forEach(i => clearFieldValidity(i, document.getElementById(`${i.id}Error`)));
-
   const studSelect = document.getElementById('studSectionSelect');
   if (studSelect) {
     studSelect.value = currentUser.advisory_section_id;
@@ -297,7 +358,6 @@ async function handleLoginSubmit(e) {
   e.preventDefault();
   const emailInput = document.getElementById('loginEmail');
   const passInput = document.getElementById('loginPassword');
-
   let valid = true;
   if (!emailInput.value.trim()) {
     setFieldValidity(emailInput, document.getElementById('loginEmailError'), false, 'Email is required.');
@@ -307,7 +367,6 @@ async function handleLoginSubmit(e) {
     setFieldValidity(passInput, document.getElementById('loginPasswordError'), false, 'Password is required.');
     valid = false;
   }
-
   if (!valid) return;
 
   try {
@@ -340,7 +399,6 @@ async function handleLoginSubmit(e) {
 
 async function handleRegisterSubmit(e) {
   e.preventDefault();
-
   const firstname = document.getElementById('regFirstName');
   const middlename = document.getElementById('regMiddleName');
   const lastname = document.getElementById('regLastName');
@@ -349,7 +407,6 @@ async function handleRegisterSubmit(e) {
   const confirmPassword = document.getElementById('regConfirmPassword');
 
   let valid = true;
-
   if (!firstname.value.trim()) {
     setFieldValidity(firstname, document.getElementById('regFirstNameError'), false, 'First name is required.');
     valid = false;
@@ -370,7 +427,6 @@ async function handleRegisterSubmit(e) {
     setFieldValidity(confirmPassword, document.getElementById('regConfirmPasswordError'), false, 'Passwords must match.');
     valid = false;
   }
-
   if (!valid) return;
 
   const teacher_category = document.getElementById('regTeacherCategory').value;
@@ -468,7 +524,11 @@ async function loadAdvisoryStudents() {
     tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">No students registered in your advisory section.</td></tr>`;
     return;
   }
-  tbody.innerHTML = students.map(s => `
+
+  // Segregate and sort students alphabetically by Gender
+  const sortedStudents = sortStudentsByGenderAndName(students);
+
+  tbody.innerHTML = sortedStudents.map(s => `
     <tr>
       <td>${s.student_id}</td>
       <td>${s.student_number}</td>
@@ -503,8 +563,8 @@ async function handleAddStudentSubmit(e) {
   const lrnInput = document.getElementById('studNumber');
   const fnInput = document.getElementById('studFirstName');
   const lnInput = document.getElementById('studLastName');
-
   let valid = true;
+
   if (!lrnInput.value.trim() || /[^0-9]/.test(lrnInput.value)) {
     setFieldValidity(lrnInput, document.getElementById('studNumberError'), false, 'Numeric LRN is required.');
     valid = false;
@@ -517,7 +577,6 @@ async function handleAddStudentSubmit(e) {
     setFieldValidity(lnInput, document.getElementById('studLastNameError'), false, 'Last name is required.');
     valid = false;
   }
-
   if (!valid) return;
 
   const payload = {
@@ -602,18 +661,15 @@ async function loadAdvisorySchedules() {
 
 async function handleAddScheduleSubmit(e) {
   e.preventDefault();
-
   const subjectInput = document.getElementById('schedSubject');
   const startInput = document.getElementById('schedStart');
   const endInput = document.getElementById('schedEnd');
-
-  // Collect checked days
   const checkedDays = Array.from(document.querySelectorAll('input[name="schedDay"]:checked')).map(cb => cb.value);
   const daysErr = document.getElementById('schedDaysError');
-
   let valid = true;
-  if (!subjectInput.value.trim()) {
-    setFieldValidity(subjectInput, document.getElementById('schedSubjectError'), false, 'Subject is required.');
+
+  if (!subjectInput.value.trim() || /[0-9]/.test(subjectInput.value)) {
+    setFieldValidity(subjectInput, document.getElementById('schedSubjectError'), false, 'Valid non-numeric subject required.');
     valid = false;
   } else {
     setFieldValidity(subjectInput, document.getElementById('schedSubjectError'), true);
@@ -629,10 +685,15 @@ async function handleAddScheduleSubmit(e) {
   if (!startInput.value) {
     setFieldValidity(startInput, document.getElementById('schedStartError'), false, 'Start time required.');
     valid = false;
+  } else {
+    setFieldValidity(startInput, document.getElementById('schedStartError'), true);
   }
+
   if (!endInput.value) {
     setFieldValidity(endInput, document.getElementById('schedEndError'), false, 'End time required.');
     valid = false;
+  } else {
+    setFieldValidity(endInput, document.getElementById('schedEndError'), true);
   }
 
   if (!valid) return;
@@ -641,7 +702,7 @@ async function handleAddScheduleSubmit(e) {
     subject_name: subjectInput.value,
     section_id: currentUser.advisory_section_id,
     teacher_id: document.getElementById('schedTeacher').value,
-    day_of_week: checkedDays.join(', '), // Multi-day string e.g. "Monday, Wednesday"
+    day_of_week: checkedDays.join(', '),
     start_time: startInput.value,
     end_time: endInput.value,
     requesting_teacher_id: currentUser.teacher_id
@@ -689,12 +750,14 @@ async function loadSubjectTeacherClasses() {
   } catch (err) {
     console.warn('API error loading classes, using fallback sample classes');
   }
+
   if (!Array.isArray(classes) || classes.length === 0) {
     classes = [
-      { schedule_id: 101, subject_name: 'Science', section_name: 'Section Alpha', grade_level: 7, day_of_week: 'Monday, Wednesday', start_time: '09:00:00', end_time: '10:00:00' },
+      { schedule_id: 101, subject_name: 'Science', section_name: 'Section Alpha', grade_level: 7, day_of_week: 'Monday, Tuesday, Wednesday, Thursday, Friday', start_time: '06:12:00', end_time: '07:12:00' },
       { schedule_id: 102, subject_name: 'Mathematics', section_name: 'Section Alpha', grade_level: 7, day_of_week: 'Monday, Friday', start_time: '08:00:00', end_time: '09:00:00' }
     ];
   }
+
   const container = document.getElementById('subjectClassCardsContainer');
   if (!container) return;
   container.innerHTML = `
@@ -715,6 +778,7 @@ async function loadSubjectTeacherClasses() {
       `).join('')}
     </div>
   `;
+
   for (const c of classes) {
     await renderClassGradebookTable(c.schedule_id, `gradebook-table-${c.schedule_id}`);
   }
@@ -733,6 +797,7 @@ function initScheduleState(scheduleId, defaultStudents) {
       scores: {}
     };
   }
+
   const state = classGradebookState[scheduleId];
   if (Array.isArray(defaultStudents)) {
     defaultStudents.forEach(s => {
@@ -770,10 +835,20 @@ async function renderClassGradebookTable(scheduleId, containerId) {
     container.innerHTML = `<p style="color: #64748b;">No students enrolled in this section.</p>`;
     return;
   }
+
+  // Sort: Male first, Female second, then alphabetically by lastname
+  students.sort((a, b) => {
+    if (a.gender !== b.gender) {
+      return a.gender === 'Male' ? -1 : 1;
+    }
+    return a.lastname.localeCompare(b.lastname);
+  });
+
   initScheduleState(scheduleId, students);
   const state = classGradebookState[scheduleId];
   const quizColsCount = state.quizzes.length;
   const perfColsCount = state.performances.length;
+  const totalColumns = 6 + quizColsCount + perfColsCount;
 
   container.innerHTML = `
     <div style="margin-bottom: 14px; display: flex; gap: 10px;">
@@ -808,7 +883,7 @@ async function renderClassGradebookTable(scheduleId, containerId) {
           </tr>
         </thead>
         <tbody>
-          ${students.map(s => {
+          ${students.map((s, index) => {
             const stScore = state.scores[s.student_id] || { attendance: 100, quizzes: {}, performances: {}, firstExam: '', finalExam: '' };
             
             let quizEarned = 0, quizTotalMax = 0;
@@ -829,9 +904,19 @@ async function renderClassGradebookTable(scheduleId, containerId) {
             const finalExam = parseFloat(stScore.finalExam) || 0;
             const examAvg = (firstExam + finalExam) / 2;
             const examWeighted = (examAvg / 100) * 30;
-
             const finalGrade = Math.round(quizWeighted + perfWeighted + examWeighted);
-            return `
+
+            // Check if this row transition is from Male to Female to insert a separator row
+            const isFirstFemale = s.gender === 'Female' && (index === 0 || students[index - 1].gender === 'Male');
+            const spacerRow = isFirstFemale ? `
+              <tr style="background-color: #f8fafc; height: 18px; border-top: 2px solid #cbd5e1; border-bottom: 2px solid #cbd5e1;">
+                <td colspan="${totalColumns}" style="padding: 4px; font-weight: bold; color: #64748b; text-align: left; background: #f1f5f9; font-size: 0.8rem;">
+                  FEMALE STUDENTS
+                </td>
+              </tr>
+            ` : '';
+
+            return spacerRow + `
               <tr style="border-bottom: 1px solid #f1f5f9;">
                 <td style="text-align: left; padding: 6px;">${s.student_number || 'N/A'}</td>
                 <td style="text-align: left; padding: 6px;"><strong>${s.lastname},${s.firstname}</strong></td>
@@ -902,11 +987,13 @@ async function updateDynamicScore(scheduleId, studentId, category, itemId, value
   const state = classGradebookState[scheduleId];
   if (!state || !state.scores[studentId]) return;
   const scoreValue = parseFloat(value) || 0;
+
   if (category === 'quizzes' || category === 'performances') {
     state.scores[studentId][category][itemId] = scoreValue;
   } else {
     state.scores[studentId][category] = scoreValue;
   }
+
   renderClassGradebookTable(scheduleId, `gradebook-table-${scheduleId}`);
 
   let assessmentType = category;

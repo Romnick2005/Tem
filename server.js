@@ -4,8 +4,6 @@ const db = require('./db');
 /* ==========================================================================
    1. SECTION & TEACHER ROUTES
    ========================================================================== */
-
-// Get all sections
 app.get('/api/sections', async (req, res) => {
   try {
     const [rows] = await db.query('SELECT * FROM section');
@@ -15,7 +13,6 @@ app.get('/api/sections', async (req, res) => {
   }
 });
 
-// Get all teachers
 app.get('/api/teachers', async (req, res) => {
   try {
     const [rows] = await db.query('SELECT teacher_id, firstname, lastname, teacher_category FROM teacher');
@@ -25,7 +22,6 @@ app.get('/api/teachers', async (req, res) => {
   }
 });
 
-// Login Teacher
 app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
   try {
@@ -45,7 +41,6 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// Register Teacher
 app.post('/api/teachers', async (req, res) => {
   const { firstname, middlename, lastname, email, password_hash, teacher_category, advisory_section_id } = req.body;
   try {
@@ -70,8 +65,7 @@ app.post('/api/teachers', async (req, res) => {
 /* ==========================================================================
    2. STUDENT MANAGEMENT ROUTES
    ========================================================================== */
-
-// Get students (optionally filtered by section)
+// Get students (Optionally filtered by section, sorted Male -> Female, Alphabetical)
 app.get('/api/students', async (req, res) => {
   const { section_id } = req.query;
   try {
@@ -85,6 +79,10 @@ app.get('/api/students', async (req, res) => {
       sql += ` WHERE s.section_id = ?`;
       params.push(section_id);
     }
+    
+    // Sort Male first (gender DESC), then by Lastname and Firstname ASC
+    sql += ` ORDER BY s.gender DESC, s.lastname ASC, s.firstname ASC`;
+
     const [rows] = await db.query(sql, params);
     res.json(rows);
   } catch (err) {
@@ -92,7 +90,6 @@ app.get('/api/students', async (req, res) => {
   }
 });
 
-// Add student
 app.post('/api/students', async (req, res) => {
   const { student_number, firstname, middlename, lastname, gender, section_id, face_image_url } = req.body;
   try {
@@ -107,7 +104,6 @@ app.post('/api/students', async (req, res) => {
   }
 });
 
-// Update student
 app.put('/api/students/:id', async (req, res) => {
   const { student_number, firstname, middlename, lastname, gender, section_id, face_image_url } = req.body;
   try {
@@ -123,7 +119,6 @@ app.put('/api/students/:id', async (req, res) => {
   }
 });
 
-// Delete student
 app.delete('/api/students/:id', async (req, res) => {
   try {
     await db.query('DELETE FROM student WHERE student_id = ?', [req.params.id]);
@@ -136,8 +131,6 @@ app.delete('/api/students/:id', async (req, res) => {
 /* ==========================================================================
    3. CLASS SCHEDULE ROUTES
    ========================================================================== */
-
-// Get class schedules (Optionally filterable by teacher_id or section_id)
 app.get('/api/class-schedules', async (req, res) => {
   const { section_id, teacher_id } = req.query;
   try {
@@ -149,7 +142,6 @@ app.get('/api/class-schedules', async (req, res) => {
     `;
     const params = [];
     const conditions = [];
-
     if (section_id) {
       conditions.push(`cs.section_id = ?`);
       params.push(section_id);
@@ -158,11 +150,9 @@ app.get('/api/class-schedules', async (req, res) => {
       conditions.push(`cs.teacher_id = ?`);
       params.push(teacher_id);
     }
-
     if (conditions.length > 0) {
       sql += ` WHERE ` + conditions.join(' AND ');
     }
-
     const [rows] = await db.query(sql, params);
     res.json(rows);
   } catch (err) {
@@ -170,7 +160,6 @@ app.get('/api/class-schedules', async (req, res) => {
   }
 });
 
-// Add Schedule
 app.post('/api/class-schedules', async (req, res) => {
   const { subject_name, section_id, teacher_id, day_of_week, start_time, end_time } = req.body;
   try {
@@ -185,7 +174,6 @@ app.post('/api/class-schedules', async (req, res) => {
   }
 });
 
-// Delete Schedule
 app.delete('/api/class-schedules/:id', async (req, res) => {
   try {
     await db.query('DELETE FROM class_schedule WHERE schedule_id = ?', [req.params.id]);
@@ -195,7 +183,6 @@ app.delete('/api/class-schedules/:id', async (req, res) => {
   }
 });
 
-// Get classes assigned specifically to a given teacher
 app.get('/api/teachers/:teacherId/classes', async (req, res) => {
   const { teacherId } = req.params;
   try {
@@ -215,8 +202,7 @@ app.get('/api/teachers/:teacherId/classes', async (req, res) => {
 /* ==========================================================================
    4. GRADEBOOK & FACE DESCRIPTOR STORE/FETCH
    ========================================================================== */
-
-// Gradebook Endpoint (Separated queries for clean, complete data reflection)
+// Gradebook Endpoint
 app.get('/api/gradebook/:scheduleId', async (req, res) => {
   const { scheduleId } = req.params;
   try {
@@ -224,41 +210,37 @@ app.get('/api/gradebook/:scheduleId', async (req, res) => {
       'SELECT section_id FROM class_schedule WHERE schedule_id = ?',
       [scheduleId]
     );
-
     if (schedRows.length === 0) {
       return res.status(404).json({ error: 'Schedule not found' });
     }
-
     const sectionId = schedRows[0].section_id;
-
+    
+    // UPDATED QUERY: Sort by Gender (Male first, Female second) then Alphabetically
     const [students] = await db.query(
-      `SELECT student_id, student_number, firstname, lastname 
+      `SELECT student_id, student_number, firstname, lastname, gender 
        FROM student 
        WHERE section_id = ? 
-       ORDER BY lastname ASC, firstname ASC`,
+       ORDER BY FIELD(gender, 'Male', 'Female') ASC, lastname ASC, firstname ASC`,
       [sectionId]
     );
-
     const [records] = await db.query(
       `SELECT student_id, category, score 
        FROM student_academic_record 
        WHERE schedule_id = ?`,
       [scheduleId]
     );
-
     const result = students.map((student) => {
       const studentRecords = records.filter((r) => r.student_id === student.student_id);
-
       const findScore = (categories) => {
         const rec = studentRecords.find((r) => categories.includes(r.category));
         return rec ? rec.score : null;
       };
-
       return {
         student_id: student.student_id,
         student_number: student.student_number,
         firstname: student.firstname,
         lastname: student.lastname,
+        gender: student.gender,
         attendance_status: findScore(['Attendance']),
         quiz1_score: findScore(['Quiz 1', 'Quiz']),
         quiz2_score: findScore(['Quiz 2']),
@@ -267,18 +249,15 @@ app.get('/api/gradebook/:scheduleId', async (req, res) => {
         exam2_score: findScore(['Final Exam']),
       };
     });
-
     res.status(200).json(result);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error: ' + error.message });
   }
 });
 
-// Save/Update face descriptor vector
 app.post('/api/students/:id/face-descriptor', async (req, res) => {
   const { id } = req.params;
   const { descriptor } = req.body;
-
   try {
     const descriptorString = JSON.stringify(descriptor);
     await db.query(
@@ -291,7 +270,6 @@ app.post('/api/students/:id/face-descriptor', async (req, res) => {
   }
 });
 
-// Fetch face descriptors for camera recognition
 app.get('/api/gradebook/:scheduleId/face-descriptors', async (req, res) => {
   const { scheduleId } = req.params;
   try {
@@ -308,7 +286,6 @@ app.get('/api/gradebook/:scheduleId/face-descriptors', async (req, res) => {
   }
 });
 
-// Save or update student score
 app.post('/api/scores', async (req, res) => {
   const { student_id, schedule_id, assessment_type, score } = req.body;
   try {
@@ -344,8 +321,6 @@ app.post('/api/scores', async (req, res) => {
 /* ==========================================================================
    5. CAMERA LOGS & FALLBACKS
    ========================================================================== */
-
-// Guidance Logs Endpoint
 app.get('/api/assessment-logs', async (req, res) => {
   try {
     const [rows] = await db.query(
@@ -367,12 +342,10 @@ app.get('/api/assessment-logs', async (req, res) => {
   }
 });
 
-// Wildcard 404 handler
 app.use('/api/*splat', (req, res) => {
   res.status(404).json({ error: `API route not found: ${req.originalUrl}` });
 });
 
-// Start Server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);

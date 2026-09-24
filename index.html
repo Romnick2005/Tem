@@ -52,7 +52,6 @@
             <span class="error-msg" id="regLastNameError"></span>
           </div>
         </div>
-
         <div class="form-row">
           <div class="form-group">
             <label for="regEmail">Email Address *</label>
@@ -68,8 +67,6 @@
             <span class="error-msg" id="regPasswordError"></span>
           </div>
         </div>
-
-        <!-- NEW CONFIRM PASSWORD FIELD -->
         <div class="form-group">
           <label for="regConfirmPassword">Confirm Password *</label>
           <div class="password-wrapper">
@@ -78,7 +75,6 @@
           </div>
           <span class="error-msg" id="regConfirmPasswordError"></span>
         </div>
-
         <div class="form-group">
           <label for="regTeacherCategory">Teacher Category *</label>
           <select id="regTeacherCategory" onchange="toggleAdvisorySectionSelect()">
@@ -87,12 +83,10 @@
             <option value="Guidance">Guidance</option>
           </select>
         </div>
-
         <div class="form-group hidden" id="advisorySectionGroup">
           <label for="regAdvisorySection">Advisory Section</label>
           <select id="regAdvisorySection"></select>
         </div>
-
         <button type="submit" class="btn btn-primary">Register Account</button>
         <p class="auth-toggle">Already have an account? <a href="#" onclick="switchAuthTab('login')">Log in here</a></p>
       </form>
@@ -254,21 +248,19 @@
           <label>Teacher</label>
           <select id="schedTeacher"></select>
         </div>
-
         <!-- DAY OF WEEK CHECKBOXES -->
         <div class="form-group">
           <label>Day of Week *</label>
           <div class="checkbox-group" id="schedDaysGroup">
+            <label class="checkbox-label"><input type="checkbox" id="schedDailyOption" value="Daily"> Daily</label>
             <label class="checkbox-label"><input type="checkbox" name="schedDay" value="Monday"> Mon</label>
             <label class="checkbox-label"><input type="checkbox" name="schedDay" value="Tuesday"> Tue</label>
             <label class="checkbox-label"><input type="checkbox" name="schedDay" value="Wednesday"> Wed</label>
             <label class="checkbox-label"><input type="checkbox" name="schedDay" value="Thursday"> Thu</label>
             <label class="checkbox-label"><input type="checkbox" name="schedDay" value="Friday"> Fri</label>
-            <label class="checkbox-label"><input type="checkbox" name="schedDay" value="Saturday"> Sat</label>
           </div>
           <span class="error-msg" id="schedDaysError"></span>
         </div>
-
         <div class="form-group">
           <label>Start Time</label>
           <input type="time" id="schedStart" required>
